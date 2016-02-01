@@ -32,7 +32,7 @@ export function personStoreDriver(commands$: Observable<any>) {
 
     commands$ = commands$.do(x => console.log("commands$: " + x)); // log the commands
 
-    let storageCommands = Observable.zip(personsInStorage$, commands$, (persons, command) => { // zip 
+    let storageCommands = Observable.zip(personsInStorage$, commands$, (persons, command) => { // zip
         console.log("Ting!!!!");
         let nextId = persons.reduce((lastMax, person) => Math.max(person.id, lastMax), 0) + 1;
         if (command instanceof AddPerson) {

@@ -1,7 +1,7 @@
 import {run} from "@cycle/core";
 import {makeDOMDriver, input, div, p, label, button, } from "@cycle/dom";
 import {Observable} from "rx";
-import {personStoreDriver, AddPerson, DeletePerson} from "./personStoreDriver";
+import {personStoreDriver, AddPerson, DeletePersons} from "./personStoreDriver";
 import {PersonList} from "./components/personList";
 import {EditPerson} from "./components/editPerson";
 import {Person} from "./person";
@@ -26,9 +26,10 @@ function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
     let selectedView$: Observable<any> = drivers.DOM.select(".select-view").events("click")
         .map(ev => <ViewNames>ev.target.dataset.view)
         .startWith(ViewNames.LIST)
+        .do(x => console.log("View: " + x))
         .map(uiAction => views[uiAction]);
 
-    // create the dom from 
+    // create the dom from
     let vtree$ = selectedView$.map(view => {
         return div(".container", [
             div(".row", [

@@ -50,8 +50,9 @@ export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Pe
 
     // INTENT -- User events from the DOM
     let deleteClick$: Observable<MouseEvent> = drivers.DOM.select(".delete").events("click");  // Observe de delete click events
-    let personSelectionClick$: Observable<{ id: number, selected: boolean }> = drivers.DOM.select(".row").events("click")
+    let personSelectionClick$: Observable<{ id: number, selected: boolean }> = drivers.DOM.select(".personrow").events("click")
         .map(ev => ev.currentTarget.dataset)
+        .filter(data => data.id !== undefined)
         .map(data => ({ id: Number(data.id), selected: !(data.selected === "true") }))
         .share()
         // share because two streams use this. One for the vtree$ and one for the deleteRequest$. If not shared FIRST the vtree$ is altered
@@ -99,7 +100,7 @@ function view(persons$: Observable<Person[]>, selectedIds$: Observable<number[]>
                     persons
                         .map(p => ({ person: p, selected: selectedIds.indexOf(p.id) >= 0 }))
                         .map(({person, selected}) =>
-                            tr(".row", {
+                            tr(".row.personrow", {
                                 attributes: {
                                     "data-id": person.id,
                                     "data-selected": selected
