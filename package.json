@@ -1,0 +1,31 @@
+{
+  "name": "cyclerxdemo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/app.ts",
+  "scripts": {
+    "serve": "node node_modules/webpack-dev-server/bin/webpack-dev-server.js  -w --inline --content-base src/",
+    "postinstall": "copyfiles -f node_modules/rx/ts/rx.all.es6.d.ts ./typings"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "copyfiles": "^0.2.1",
+    "css-loader": "^0.23.1",
+    "extract-text-webpack-plugin": "^1.0.1",
+    "file-loader": "^0.8.5",
+    "html-webpack-plugin": "^1.7.0",
+    "style-loader": "^0.13.0",
+    "ts-loader": "^0.7.2",
+    "typescript": "^1.7.5",
+    "webpack": "^1.12.11",
+    "webpack-dev-server": "^1.14.1"
+  },
+  "dependencies": {
+    "@cycle/core": "^6.0.0",
+    "@cycle/dom": "^9.0.1",
+    "@cycle/storage": "^2.0.3",
+    "lodash": "^4.1.0",
+    "rx": "^4.0.7"
+  }
+}
