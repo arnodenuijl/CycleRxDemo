@@ -18,19 +18,9 @@ export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Pe
                  // and rerendered and THEN the deleteRequest$ is processed. But that goes wrong because it operates on the already changed DOM
         .do(x => console.log("selectionToggled$: " + JSON.stringify(x)));
 
-    let personsIds$ = persons$.map(x => x.map(p => p.id)).do(x => console.log("Person ids: " + JSON.stringify(x))); // observable of all the ids of the persons currently in the list
-
-    let selectedIds$ = Observable.combineLatest(personsIds$, selectionToggled$, (personIds, selectionToggled) => ({ personIds, selectionToggled }))
-        .do(({personIds, selectionToggled}) => console.log("Scan: " + JSON.stringify(personIds + " :: " + JSON.stringify(selectionToggled))))
-        .scan((acc, value) => {
-            acc = _.intersection(acc, value.personIds);                // only keep ids that are in the person list
-            if (value.selectionToggled.selected) {
-                acc = _.union(acc, [value.selectionToggled.id]);     // include selected
-            } else {
-                acc = _.without(acc, value.selectionToggled.id);   // remove deselected
-            }
-            return acc;
-        },                     // toggle selected
+    let selectedIds$ = Observable.combineLatest(persons$, selectionToggled$, (persons, selectionToggled) => ({ persons, selectionToggled }))
+        .scan((selectedIds: number[], value: ({ persons: Person[], selectionToggled: ({ id: number, selected: boolean }) })) =>
+            determineSelectedIds(selectedIds, value.persons, value.selectionToggled),
         [])                    // and filter out already deleted ids
         .startWith([])
         .do(x => console.log("Selected ids: " + JSON.stringify(x)));
@@ -73,4 +63,17 @@ export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Pe
         DOM: vtree$.do(x => console.log("vtree$ personlist")),
         PersonStoreDriver: <Observable<any>>deleteRequest$
     };
+}
+
+function determineSelectedIds(currentSelectedIds: number[], latestPersonList: Person[], latestSelectionToggled: ({ id: number, selected: boolean })) {
+    let personIds = latestPersonList.map(x => x.id);
+
+    let selectedIds = currentSelectedIds;
+    if (latestSelectionToggled.selected) {
+        selectedIds = _.union(selectedIds, [latestSelectionToggled.id]);     // include selected
+    } else {
+        selectedIds = _.without(selectedIds, latestSelectionToggled.id);     // remove deselected
+    }
+    selectedIds = _.intersection(personIds, selectedIds);                    // only keep ids that are in the person list
+    return selectedIds;
 }
