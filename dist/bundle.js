@@ -29304,7 +29304,6 @@
 	 * vtree$                -> The virtual dom is created from the person$ (for the data) and the selectedIds$ (for the highlights)
 	 * deleteClick$          -> Stream of clicks on the delete button
 	 * deleteRequest$        -> The deleteClick$ and selectedIds$ are combined to create a DeletePersons request for the latest ids in the selectedIds$ stream
-	 *
 	 **/
 	function PersonList(drivers) {
 	    // Updates from the Person[]
