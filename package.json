@@ -5,7 +5,7 @@
   "main": "src/app.ts",
   "scripts": {
     "postinstall": "copyfiles -f node_modules/rx/ts/rx.all.es6.d.ts ./typings",
-    "push": "npm run dist && git add ./dist && npm run pushdist && npm run pushorigin",  
+    "push": "npm run dist && git commit -m 'dist' ./dist && npm run pushdist && npm run pushorigin",  
     "dist": "webpack",
     "pushorigin": "git push origin",
     "pushdist": "git subtree push --prefix dist origin gh-pages",
