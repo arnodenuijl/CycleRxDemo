@@ -5,6 +5,8 @@ import {personStoreDriver, AddPerson, DeletePerson} from "./personStoreDriver";
 import {PersonList} from "./components/personList";
 import {EditPerson} from "./components/editPerson";
 import {Person} from "./person";
+require("!style!css!./css/normalize.css");
+require("!style!css!./css/skeleton.css");
 
 function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
     // components
@@ -28,13 +30,15 @@ function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
 
     // create the dom from 
     let vtree$ = selectedView$.map(view => {
-        return div([
-            div([
-                view.DOM
+        return div(".container", [
+            div(".row", [
+                div([
+                    button(".select-view", { attributes: { "data-view": ViewNames.LIST } }, "Show list"),
+                    button(".select-view", { attributes: { "data-view": ViewNames.ADD } }, "Add Item")
+                ]),
             ]),
-            div([
-                button(".select-view", { attributes: { "data-view": ViewNames.LIST } }, "Show list"),
-                button(".select-view", { attributes: { "data-view": ViewNames.ADD } }, "Add Item")
+            div(".row", [
+                view.DOM
             ])
         ]);
     });
