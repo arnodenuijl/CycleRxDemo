@@ -4,7 +4,6 @@ import storageDriver from "@cycle/storage";
 import {Observable} from "rx";
 import {AddPerson, DeletePersons} from "../personStoreDriver";
 import {Person} from "../person";
-import {toggle} from "../toggle";
 import * as _ from "lodash";
 /**
  *            DOM                     PersonStoreDriver
