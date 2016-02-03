@@ -10,11 +10,14 @@ export class AddPerson {
     get LastName() { return this.lastName; }
 }
 
-export class DeletePersons {
-    constructor(private ids: number[]) {
+export class DeletePerson {
+    constructor(private id: number) {
     }
 
-    get Ids() { return this.ids; }
+    get Id() { return this.id; }
+}
+
+export class ClearPersons {
 }
 
 export function personStoreDriver(commands$: Observable<any>) {
@@ -27,19 +30,21 @@ export function personStoreDriver(commands$: Observable<any>) {
     let personsInStorage$: Observable<Person[]> = storageValue$
         .map(personsString => personsString || "[]")            // if initial is empty use an empty array (in the form of a json string)
         .map(personsString => JSON.parse(personsString))        // convert the json string to an array
-        .do(x => console.log("personsInStorage$: " + x))
         .shareReplay(1);
 
-    commands$ = commands$.do(x => console.log("commands$: " + x)); // log the commands
-
     let storageCommands = Observable.zip(personsInStorage$, commands$, (persons, command) => { // zip
-        console.log("Ting!!!!");
         let nextId = persons.reduce((lastMax, person) => Math.max(person.id, lastMax), 0) + 1;
         if (command instanceof AddPerson) {
-            persons.push({ id: nextId, firstName: command.FirstName, lastName: command.LastName });
+          console.log("personStoreDriver - AddPerson: " + JSON.stringify(command));
+          persons.push({ id: nextId, firstName: command.FirstName, lastName: command.LastName });
         }
-        if (command instanceof DeletePersons) {
-            persons = persons.filter(p => command.Ids.indexOf(p.id) < 0);
+        if (command instanceof DeletePerson) {
+          console.log("personStoreDriver - DeletePerson: " + JSON.stringify(command));
+          persons = persons.filter(p => p.id !== command.Id);
+        }
+        if (command instanceof ClearPersons) {
+          console.log("personStoreDriver - ClearPersons: " + JSON.stringify(command));
+          persons = [];
         }
         return persons;
     }).subscribe(persons => proxy$.onNext({ key: PERSONS_KEY, value: JSON.stringify(persons) }));
