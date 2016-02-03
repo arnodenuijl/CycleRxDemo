@@ -1,10 +1,10 @@
 import {run} from "@cycle/core";
-import {makeDOMDriver, input, div, p, label, button, } from "@cycle/dom";
+import {makeDOMDriver, div, button} from "@cycle/dom";
 import {Observable} from "rx";
-import {personStoreDriver, AddPerson, DeletePersons} from "./personStoreDriver";
+import {personStoreDriver} from "./personStoreDriver";
 import {PersonList} from "./components/personList";
 import {EditPerson} from "./components/editPerson";
-import {Person} from "./person";
+import {Person} from "./Person";
 
 require("!style!css!./css/normalize.css");
 require("!style!css!./css/skeleton.css");
