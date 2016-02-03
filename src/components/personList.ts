@@ -2,7 +2,7 @@ import {run} from "@cycle/core";
 import {makeDOMDriver, input, div, p, label, button, table, tr, td, th, thead, tbody } from "@cycle/dom";
 import storageDriver from "@cycle/storage";
 import {Observable} from "rx";
-import {AddPerson, DeletePersons} from "../personStoreDriver";
+import {AddPerson, DeletePerson, ClearPersons} from "../personStoreDriver";
 import {Person} from "../person";
 import * as _ from "lodash";
 /**
@@ -45,18 +45,19 @@ import * as _ from "lodash";
  **/
 export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
     // Updates from the Person[]
-    let persons$ = drivers.PersonStoreDriver.do(x => console.log("Persons: " + JSON.stringify(x)));
+    let persons$ = drivers.PersonStoreDriver.do(x => console.log("persons$: " + x.length + " persons")).shareReplay(1);
 
     // INTENT -- User events from the DOM
-    let deleteClick$: Observable<MouseEvent> = drivers.DOM.select(".delete").events("click");  // Observe de delete click events
+    let clearClick$: Observable<MouseEvent> = drivers.DOM.select(".clear").events("click").do(x => console.log("clearClick$"));  // Observe de clear click events
+    let deleteClick$: Observable<MouseEvent> = drivers.DOM.select(".delete").events("click").do(x => console.log("deleteClick$:"));  // Observe de delete click events
+
     let personSelectionClick$: Observable<{ id: number, selected: boolean }> = drivers.DOM.select(".personrow").events("click")
         .map(ev => ev.currentTarget.dataset)
         .filter(data => data.id !== undefined)
         .map(data => ({ id: Number(data.id), selected: !(data.selected === "true") }))
-        .share()
         // share because two streams use this. One for the vtree$ and one for the deleteRequest$. If not shared FIRST the vtree$ is altered
         // and rerendered and THEN the deleteRequest$ is processed. But that goes wrong because it operates on the already changed DOM
-        .do(x => console.log("selectionToggled$: " + JSON.stringify(x)));
+        .do(x => console.log("personSelectionClick$: " + JSON.stringify(x)));
 
     // MODEL
     // combine persons$ and personSelectionClick$ to determine the currently selected ids
@@ -66,27 +67,36 @@ export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Pe
             determineSelectedIds(selectedIdsAccumulator, value.persons, value.personSelectionClick),
         [])
         .startWith([]) // start with empty selection
-        .do(x => console.log("Selected ids: " + JSON.stringify(x)));
+        .do(x => console.log("selectedIds$: " + JSON.stringify(x)))
+        .share();
 
     // if deleteClick$ is triggered sample the last selectedIds$ and delete them
-    let deleteRequest$ = selectedIds$.do(x => console.log("prepare for delete: " + JSON.stringify(x)))
+    let deleteRequest$ = selectedIds$
         .sample(deleteClick$)
-        .filter(ids => ids.length > 0)
-        .map(ids => new DeletePersons(ids));
+        .flatMap(ids => Observable.fromArray(ids))
+        .map(id => new DeletePerson(id))
+        .do(req => console.log("deleteRequest$: " + JSON.stringify(req)));
+
+    let clearRequest$ = clearClick$
+        .map(_ => new ClearPersons())
+        .do(req => console.log("clearRequest$: " + JSON.stringify(req)));
+
+
+    let state$: Observable<State> = Observable.combineLatest(persons$, selectedIds$, (persons, selectedIds) => ({persons, selectedIds}));
 
     // VIEW -- genereate virtual DOM
-    let vtree$ = view(persons$, selectedIds$);
+    let vtree$ = view(state$);
 
     return {
-        DOM: vtree$.do(x => console.log("vtree$ personlist")),
-        PersonStoreDriver: <Observable<any>>deleteRequest$
+        DOM: vtree$,
+        PersonStoreDriver: Observable.merge(deleteRequest$, clearRequest$)
     };
 }
 
-function view(persons$: Observable<Person[]>, selectedIds$: Observable<number[]>): Observable<any> {
+function view(state$: Observable<State>): Observable<any> {
     // Build up vtree from array of persons and idInput
-    let vtree$ = Observable.combineLatest(persons$, selectedIds$, (persons, selectedIds) =>
-        div([
+    let vtree$ = state$.map(state =>
+        div(".row", [
             table([
                 thead([
                     tr([
@@ -96,8 +106,8 @@ function view(persons$: Observable<Person[]>, selectedIds$: Observable<number[]>
                     ])
                 ]),
                 tbody([
-                    persons
-                        .map(p => ({ person: p, selected: selectedIds.indexOf(p.id) >= 0 }))
+                    state.persons
+                        .map(p => ({ person: p, selected: state.selectedIds.indexOf(p.id) >= 0 }))
                         .map(({person, selected}) =>
                             tr(".row.personrow", {
                                 attributes: {
@@ -112,9 +122,12 @@ function view(persons$: Observable<Person[]>, selectedIds$: Observable<number[]>
                                 ])),
                 ])
             ]),
-            selectedIds.length > 0 ? div([button(".delete", "delete")]) : null
+            div([button(".delete", "delete")]) ,
+            div([button(".clear", "clear")])
+            // selectedIds.length > 0 ? div([button(".delete", "delete")]) : null,
+            // persons.length > 0 ? div([button(".clear", "clear")]) : null
         ])
-    );
+    ).do(x => console.log("vtree$"));
     return vtree$;
 }
 
@@ -134,4 +147,9 @@ function determineSelectedIds(currentSelectedIds: number[], latestPersonList: Pe
 interface PersonsAndClicksCombined {
     persons: Person[];
     personSelectionClick: ({ id: number, selected: boolean });
+}
+
+interface State {
+  persons: Person[];
+  selectedIds: number[];
 }
