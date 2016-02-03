@@ -5,11 +5,11 @@
   "main": "src/app.ts",
   "scripts": {
     "postinstall": "copyfiles -f node_modules/rx/ts/rx.all.es6.d.ts ./typings",
-    "push": "npm run dist && git commit -m 'dist' ./dist && npm run pushdist && npm run pushorigin",  
+    "push": "npm run dist && git commit -m 'dist' ./dist && npm run pushdist && npm run pushorigin",
     "dist": "webpack",
     "pushorigin": "git push origin",
     "pushdist": "git subtree push --prefix dist origin gh-pages",
-    "serve": "node node_modules/webpack-dev-server/bin/webpack-dev-server.js  -w --inline --content-base src/"
+    "serve": "node node_modules/webpack-dev-server/bin/webpack-dev-server.js  -w --port 9000 --inline --content-base src/"
   },
   "author": "",
   "license": "ISC",
