@@ -47,16 +47,12 @@
 	"use strict";
 	var core_1 = __webpack_require__(1);
 	var dom_1 = __webpack_require__(5);
-	var rx_1 = __webpack_require__(2);
 	var personStoreDriver_1 = __webpack_require__(63);
 	var personList_1 = __webpack_require__(69);
 	var editPerson_1 = __webpack_require__(71);
 	__webpack_require__(72);
 	__webpack_require__(76);
 	function main(drivers) {
-	    // components
-	    var personList = personList_1.PersonList(drivers);
-	    var editPerson = editPerson_1.EditPerson(drivers);
 	    // Views
 	    var ViewNames;
 	    (function (ViewNames) {
@@ -64,13 +60,14 @@
 	        ViewNames[ViewNames["LIST"] = 1] = "LIST";
 	    })(ViewNames || (ViewNames = {}));
 	    var views = [];
-	    views[ViewNames.ADD] = editPerson;
-	    views[ViewNames.LIST] = personList;
+	    views[ViewNames.ADD] = editPerson_1.EditPerson(drivers);
+	    views[ViewNames.LIST] = personList_1.PersonList(drivers);
 	    var selectedView$ = drivers.DOM.select(".select-view").events("click")
 	        .map(function (ev) { return ev.target.dataset.view; })
 	        .startWith(ViewNames.LIST)
 	        .do(function (x) { return console.log("View: " + x); })
 	        .map(function (uiAction) { return views[uiAction]; });
+	    var personStoreRequests$ = selectedView$.flatMapLatest(function (view) { return view.PersonStoreDriver; });
 	    // create the dom from
 	    var vtree$ = selectedView$.map(function (view) {
 	        return dom_1.div(".container", [
@@ -80,18 +77,18 @@
 	                    dom_1.button(".select-view", { attributes: { "data-view": ViewNames.ADD } }, "Add Item")
 	                ]),
 	            ]),
-	            dom_1.div(".row", [
+	            dom_1.div(".row .maincontent", [
 	                view.DOM
 	            ])
 	        ]);
 	    });
 	    return {
 	        DOM: vtree$.do(function (x) { return console.log("vtree$"); }),
-	        PersonStoreDriver: rx_1.Observable.merge(personList.PersonStoreDriver, editPerson.PersonStoreDriver).do(function (req) { return console.log("Req: " + JSON.stringify(req)); })
+	        PersonStoreDriver: personStoreRequests$
 	    };
 	}
 	var drivers = {
-	    DOM: dom_1.makeDOMDriver("body"),
+	    DOM: dom_1.makeDOMDriver("#app"),
 	    PersonStoreDriver: personStoreDriver_1.personStoreDriver
 	};
 	core_1.run(main, drivers);
@@ -16813,18 +16810,24 @@
 	    return AddPerson;
 	}());
 	exports.AddPerson = AddPerson;
-	var DeletePersons = (function () {
-	    function DeletePersons(ids) {
-	        this.ids = ids;
+	var DeletePerson = (function () {
+	    function DeletePerson(id) {
+	        this.id = id;
 	    }
-	    Object.defineProperty(DeletePersons.prototype, "Ids", {
-	        get: function () { return this.ids; },
+	    Object.defineProperty(DeletePerson.prototype, "Id", {
+	        get: function () { return this.id; },
 	        enumerable: true,
 	        configurable: true
 	    });
-	    return DeletePersons;
+	    return DeletePerson;
 	}());
-	exports.DeletePersons = DeletePersons;
+	exports.DeletePerson = DeletePerson;
+	var ClearPersons = (function () {
+	    function ClearPersons() {
+	    }
+	    return ClearPersons;
+	}());
+	exports.ClearPersons = ClearPersons;
 	function personStoreDriver(commands$) {
 	    var PERSONS_KEY = "persons";
 	    var proxy$ = new rx_1.Subject();
@@ -16833,17 +16836,20 @@
 	    var personsInStorage$ = storageValue$
 	        .map(function (personsString) { return personsString || "[]"; }) // if initial is empty use an empty array (in the form of a json string)
 	        .map(function (personsString) { return JSON.parse(personsString); }) // convert the json string to an array
-	        .do(function (x) { return console.log("personsInStorage$: " + x); })
 	        .shareReplay(1);
-	    commands$ = commands$.do(function (x) { return console.log("commands$: " + x); }); // log the commands
 	    var storageCommands = rx_1.Observable.zip(personsInStorage$, commands$, function (persons, command) {
-	        console.log("Ting!!!!");
 	        var nextId = persons.reduce(function (lastMax, person) { return Math.max(person.id, lastMax); }, 0) + 1;
 	        if (command instanceof AddPerson) {
+	            console.log("personStoreDriver - AddPerson: " + JSON.stringify(command));
 	            persons.push({ id: nextId, firstName: command.FirstName, lastName: command.LastName });
 	        }
-	        if (command instanceof DeletePersons) {
-	            persons = persons.filter(function (p) { return command.Ids.indexOf(p.id) < 0; });
+	        if (command instanceof DeletePerson) {
+	            console.log("personStoreDriver - DeletePerson: " + JSON.stringify(command));
+	            persons = persons.filter(function (p) { return p.id !== command.Id; });
+	        }
+	        if (command instanceof ClearPersons) {
+	            console.log("personStoreDriver - ClearPersons: " + JSON.stringify(command));
+	            persons = [];
 	        }
 	        return persons;
 	    }).subscribe(function (persons) { return proxy$.onNext({ key: PERSONS_KEY, value: JSON.stringify(persons) }); });
@@ -29308,15 +29314,15 @@
 	 **/
 	function PersonList(drivers) {
 	    // Updates from the Person[]
-	    var persons$ = drivers.PersonStoreDriver.do(function (x) { return console.log("Persons: " + JSON.stringify(x)); });
+	    var persons$ = drivers.PersonStoreDriver.do(function (x) { return console.log("persons$: " + x.length + " persons"); }).shareReplay(1);
 	    // INTENT -- User events from the DOM
-	    var deleteClick$ = drivers.DOM.select(".delete").events("click"); // Observe de delete click events
+	    var clearClick$ = drivers.DOM.select(".clear").events("click").do(function (x) { return console.log("clearClick$"); }); // Observe de clear click events
+	    var deleteClick$ = drivers.DOM.select(".delete").events("click").do(function (x) { return console.log("deleteClick$:"); }); // Observe de delete click events
 	    var personSelectionClick$ = drivers.DOM.select(".personrow").events("click")
 	        .map(function (ev) { return ev.currentTarget.dataset; })
 	        .filter(function (data) { return data.id !== undefined; })
 	        .map(function (data) { return ({ id: Number(data.id), selected: !(data.selected === "true") }); })
-	        .share()
-	        .do(function (x) { return console.log("selectionToggled$: " + JSON.stringify(x)); });
+	        .do(function (x) { return console.log("personSelectionClick$: " + JSON.stringify(x)); });
 	    // MODEL
 	    // combine persons$ and personSelectionClick$ to determine the currently selected ids
 	    var PersonsAndClicksCombined$ = rx_1.Observable.combineLatest(persons$, personSelectionClick$, function (persons, personSelectionClick) { return ({ persons: persons, personSelectionClick: personSelectionClick }); });
@@ -29325,24 +29331,30 @@
 	        return determineSelectedIds(selectedIdsAccumulator, value.persons, value.personSelectionClick);
 	    }, [])
 	        .startWith([]) // start with empty selection
-	        .do(function (x) { return console.log("Selected ids: " + JSON.stringify(x)); });
+	        .do(function (x) { return console.log("selectedIds$: " + JSON.stringify(x)); })
+	        .share();
 	    // if deleteClick$ is triggered sample the last selectedIds$ and delete them
-	    var deleteRequest$ = selectedIds$.do(function (x) { return console.log("prepare for delete: " + JSON.stringify(x)); })
+	    var deleteRequest$ = selectedIds$
 	        .sample(deleteClick$)
-	        .filter(function (ids) { return ids.length > 0; })
-	        .map(function (ids) { return new personStoreDriver_1.DeletePersons(ids); });
+	        .flatMap(function (ids) { return rx_1.Observable.fromArray(ids); })
+	        .map(function (id) { return new personStoreDriver_1.DeletePerson(id); })
+	        .do(function (req) { return console.log("deleteRequest$: " + JSON.stringify(req)); });
+	    var clearRequest$ = clearClick$
+	        .map(function (_) { return new personStoreDriver_1.ClearPersons(); })
+	        .do(function (req) { return console.log("clearRequest$: " + JSON.stringify(req)); });
+	    var state$ = rx_1.Observable.combineLatest(persons$, selectedIds$, function (persons, selectedIds) { return ({ persons: persons, selectedIds: selectedIds }); });
 	    // VIEW -- genereate virtual DOM
-	    var vtree$ = view(persons$, selectedIds$);
+	    var vtree$ = view(state$);
 	    return {
-	        DOM: vtree$.do(function (x) { return console.log("vtree$ personlist"); }),
-	        PersonStoreDriver: deleteRequest$
+	        DOM: vtree$,
+	        PersonStoreDriver: rx_1.Observable.merge(deleteRequest$, clearRequest$)
 	    };
 	}
 	exports.PersonList = PersonList;
-	function view(persons$, selectedIds$) {
+	function view(state$) {
 	    // Build up vtree from array of persons and idInput
-	    var vtree$ = rx_1.Observable.combineLatest(persons$, selectedIds$, function (persons, selectedIds) {
-	        return dom_1.div([
+	    var vtree$ = state$.map(function (state) {
+	        return dom_1.div(".row", [
 	            dom_1.table([
 	                dom_1.thead([
 	                    dom_1.tr([
@@ -29352,8 +29364,8 @@
 	                    ])
 	                ]),
 	                dom_1.tbody([
-	                    persons
-	                        .map(function (p) { return ({ person: p, selected: selectedIds.indexOf(p.id) >= 0 }); })
+	                    state.persons
+	                        .map(function (p) { return ({ person: p, selected: state.selectedIds.indexOf(p.id) >= 0 }); })
 	                        .map(function (_a) {
 	                        var person = _a.person, selected = _a.selected;
 	                        return dom_1.tr(".row.personrow", {
@@ -29370,9 +29382,10 @@
 	                    }),
 	                ])
 	            ]),
-	            selectedIds.length > 0 ? dom_1.div([dom_1.button(".delete", "delete")]) : null
+	            dom_1.div([dom_1.button(".delete", "delete")]),
+	            dom_1.div([dom_1.button(".clear", "clear")])
 	        ]);
-	    });
+	    }).do(function (x) { return console.log("vtree$"); });
 	    return vtree$;
 	}
 	function determineSelectedIds(currentSelectedIds, latestPersonList, latestSelectionToggled) {
@@ -43956,34 +43969,59 @@
 	var rx_1 = __webpack_require__(2);
 	var personStoreDriver_1 = __webpack_require__(63);
 	function EditPerson(drivers) {
-	    var personCountChanged$ = drivers.PersonStoreDriver.do(function (x) { return console.log("Person array updated " + x.length); })
+	    // Updates from the Person[]
+	    var persons$ = drivers.PersonStoreDriver.do(function (x) { return console.log("persons$: " + x.length + " persons"); }).shareReplay(1);
+	    var personCountChanged$ = persons$
 	        .map(function (persons) { return persons.length; })
 	        .distinctUntilChanged()
 	        .bufferWithCount(2, 1)
 	        .map(function (personLengths) { return personLengths[1] - personLengths[0]; })
+	        .do(function (x) { return console.log("personCountChanged$: diff: " + x); })
 	        .share();
-	    var changedMessage$ = personCountChanged$.map(function (changedNum) { return changedNum > 0 ? dom_1.div("Added " + changedNum + " persons") : dom_1.div("Deleted " + changedNum + " persons"); })
-	        .do(function (x) { return console.log("changed"); });
-	    var clearMessage$ = changedMessage$.flatMap(function (_) { return rx_1.Observable.timer(2000); }).map(function (x) { return ""; }).do(function (x) { return console.log("cleared"); });
-	    var message$ = rx_1.Observable.merge(changedMessage$, clearMessage$).startWith("");
-	    var dummyUsers = [
-	        { id: 0, firstName: "Arno", lastName: "den Uijl" },
-	    ];
-	    var createClick$ = drivers.DOM.select(".create-default").events("click"); // Observe de delete click events
-	    var storageRequests = createClick$.flatMap(function (_) { return rx_1.Observable.fromArray(dummyUsers); })
-	        .map(function (x) { return new personStoreDriver_1.AddPerson(x.firstName, x.lastName); });
-	    var vtree$ = message$.do(function (x) { return console.log("message changed"); })
+	    // notification if the person changed count is changed
+	    var personCountChangedMessage$ = personCountChanged$.map(function (changedNum) { return changedNum > 0 ? "Added " + changedNum + " persons" : "Deleted " + changedNum + " persons"; })
+	        .do(function (x) { return console.log("personCountChangedMessage$: " + x); });
+	    var clearMessage$ = personCountChangedMessage$.flatMap(function (_) { return rx_1.Observable.timer(2000); }).map(function (x) { return ""; }).do(function (x) { return console.log("clearMessage$"); });
+	    var message$ = rx_1.Observable.merge(personCountChangedMessage$, clearMessage$).startWith("").do(function (x) { return console.log("message$: '" + x + "'"); });
+	    var createClick$ = drivers.DOM.select(".create-default").events("click").do(function (x) { return console.log("createClick$"); }); // Observe de delete click events
+	    // save person
+	    var firstNameInput$ = drivers.DOM.select(".firstName").events("input").map(function (ev) { return ev.target.value; }).do(function (x) { return console.log("firstNameInput$: " + x); });
+	    var lastNameInput$ = drivers.DOM.select(".lastName").events("input").map(function (ev) { return ev.target.value; }).do(function (x) { return console.log("lastNameInput$: " + x); });
+	    var storageRequest$ = rx_1.Observable.combineLatest(firstNameInput$, lastNameInput$, function (f, l) { return ({ firstName: f, lastName: l }); })
+	        .sample(createClick$)
+	        .filter(function (x) { return x.firstName !== "" && x.lastName !== ""; })
+	        .map(function (x) { return new personStoreDriver_1.AddPerson(x.firstName, x.lastName); })
+	        .do(function (x) { return console.log("storageRequest$: " + JSON.stringify(x)); });
+	    var vtree$ = message$
 	        .map(function (message) {
 	        return dom_1.div([
-	            dom_1.div([
-	                dom_1.button(".create-default", "create default")
+	            dom_1.div(".row", [
+	                dom_1.div(".two .columns", [
+	                    dom_1.label(".label", "First name"),
+	                ]),
+	                dom_1.div(".three .columns", [
+	                    dom_1.input(".firstName")
+	                ])
 	            ]),
-	            message
+	            dom_1.div(".row", [
+	                dom_1.div(".two .columns", [
+	                    dom_1.label(".label", "Last name"),
+	                ]),
+	                dom_1.div(".three .columns", [
+	                    dom_1.input(".lastName")
+	                ])
+	            ]),
+	            dom_1.div(".row", [
+	                dom_1.div(".two .columns", [
+	                    dom_1.button(".create-default", "Save"),
+	                    dom_1.span(message)
+	                ])
+	            ])
 	        ]);
-	    });
+	    }).do(function (x) { return console.log("vtree$"); });
 	    return {
 	        DOM: vtree$,
-	        PersonStoreDriver: storageRequests
+	        PersonStoreDriver: storageRequest$
 	    };
 	}
 	exports.EditPerson = EditPerson;
