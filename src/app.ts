@@ -5,14 +5,12 @@ import {personStoreDriver, AddPerson, DeletePersons} from "./personStoreDriver";
 import {PersonList} from "./components/personList";
 import {EditPerson} from "./components/editPerson";
 import {Person} from "./person";
+
 require("!style!css!./css/normalize.css");
+require("!style!css!./css/app.css");
 require("!style!css!./css/skeleton.css");
 
 function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
-    // components
-    let personList = PersonList(drivers);
-    let editPerson = EditPerson(drivers);
-
     // Views
     enum ViewNames {
         ADD = 0,
@@ -20,14 +18,16 @@ function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
     }
 
     let views = [];
-    views[ViewNames.ADD] = editPerson;
-    views[ViewNames.LIST] = personList;
+    views[ViewNames.ADD] = EditPerson(drivers);
+    views[ViewNames.LIST] = PersonList(drivers);
 
     let selectedView$: Observable<any> = drivers.DOM.select(".select-view").events("click")
         .map(ev => <ViewNames>ev.target.dataset.view)
         .startWith(ViewNames.LIST)
         .do(x => console.log("View: " + x))
         .map(uiAction => views[uiAction]);
+
+    let personStoreRequests$ = selectedView$.flatMapLatest(view => view.PersonStoreDriver);
 
     // create the dom from
     let vtree$ = selectedView$.map(view => {
@@ -38,7 +38,7 @@ function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
                     button(".select-view", { attributes: { "data-view": ViewNames.ADD } }, "Add Item")
                 ]),
             ]),
-            div(".row", [
+            div(".row .maincontent", [
                 view.DOM
             ])
         ]);
@@ -46,13 +46,12 @@ function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
 
     return {
         DOM: vtree$.do(x => console.log("vtree$")),
-        PersonStoreDriver: Observable.merge(personList.PersonStoreDriver, editPerson.PersonStoreDriver).do(req => console.log("Req: " + JSON.stringify(req)))
+        PersonStoreDriver: personStoreRequests$
     };
-
 }
 
 const drivers = {
-    DOM: <any>makeDOMDriver("body"),
+    DOM: <any>makeDOMDriver("#app"),
     PersonStoreDriver: personStoreDriver
 };
 
