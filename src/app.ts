@@ -7,7 +7,6 @@ import {EditPerson} from "./components/editPerson";
 import {Person} from "./person";
 
 require("!style!css!./css/normalize.css");
-require("!style!css!./css/app.css");
 require("!style!css!./css/skeleton.css");
 
 function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
