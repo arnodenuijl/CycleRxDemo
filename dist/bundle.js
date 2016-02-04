@@ -49,7 +49,7 @@
 	var dom_1 = __webpack_require__(5);
 	var personStoreDriver_1 = __webpack_require__(63);
 	var personList_1 = __webpack_require__(69);
-	var editPerson_1 = __webpack_require__(71);
+	var addPerson_1 = __webpack_require__(71);
 	__webpack_require__(72);
 	__webpack_require__(76);
 	function main(drivers) {
@@ -60,7 +60,7 @@
 	        ViewNames[ViewNames["LIST"] = 1] = "LIST";
 	    })(ViewNames || (ViewNames = {}));
 	    var views = [];
-	    views[ViewNames.ADD] = editPerson_1.EditPerson(drivers);
+	    views[ViewNames.ADD] = addPerson_1.AddPerson(drivers);
 	    views[ViewNames.LIST] = personList_1.PersonList(drivers);
 	    var selectedView$ = drivers.DOM.select(".select-view").events("click")
 	        .map(function (ev) { return ev.target.dataset.view; })
@@ -16792,42 +16792,42 @@
 	"use strict";
 	var rx_1 = __webpack_require__(2);
 	var storage_1 = __webpack_require__(64);
-	var AddPerson = (function () {
-	    function AddPerson(firstName, lastName) {
+	var AddPersonCommand = (function () {
+	    function AddPersonCommand(firstName, lastName) {
 	        this.firstName = firstName;
 	        this.lastName = lastName;
 	    }
-	    Object.defineProperty(AddPerson.prototype, "FirstName", {
+	    Object.defineProperty(AddPersonCommand.prototype, "FirstName", {
 	        get: function () { return this.firstName; },
 	        enumerable: true,
 	        configurable: true
 	    });
-	    Object.defineProperty(AddPerson.prototype, "LastName", {
+	    Object.defineProperty(AddPersonCommand.prototype, "LastName", {
 	        get: function () { return this.lastName; },
 	        enumerable: true,
 	        configurable: true
 	    });
-	    return AddPerson;
+	    return AddPersonCommand;
 	}());
-	exports.AddPerson = AddPerson;
-	var DeletePerson = (function () {
-	    function DeletePerson(id) {
+	exports.AddPersonCommand = AddPersonCommand;
+	var DeletePersonCommand = (function () {
+	    function DeletePersonCommand(id) {
 	        this.id = id;
 	    }
-	    Object.defineProperty(DeletePerson.prototype, "Id", {
+	    Object.defineProperty(DeletePersonCommand.prototype, "Id", {
 	        get: function () { return this.id; },
 	        enumerable: true,
 	        configurable: true
 	    });
-	    return DeletePerson;
+	    return DeletePersonCommand;
 	}());
-	exports.DeletePerson = DeletePerson;
-	var ClearPersons = (function () {
-	    function ClearPersons() {
+	exports.DeletePersonCommand = DeletePersonCommand;
+	var ClearPersonsCommand = (function () {
+	    function ClearPersonsCommand() {
 	    }
-	    return ClearPersons;
+	    return ClearPersonsCommand;
 	}());
-	exports.ClearPersons = ClearPersons;
+	exports.ClearPersonsCommand = ClearPersonsCommand;
 	function personStoreDriver(commands$) {
 	    var PERSONS_KEY = "persons";
 	    var proxy$ = new rx_1.Subject();
@@ -16839,15 +16839,15 @@
 	        .shareReplay(1);
 	    var storageCommands = rx_1.Observable.zip(personsInStorage$, commands$, function (persons, command) {
 	        var nextId = persons.reduce(function (lastMax, person) { return Math.max(person.id, lastMax); }, 0) + 1;
-	        if (command instanceof AddPerson) {
+	        if (command instanceof AddPersonCommand) {
 	            console.log("personStoreDriver - AddPerson: " + JSON.stringify(command));
 	            persons.push({ id: nextId, firstName: command.FirstName, lastName: command.LastName });
 	        }
-	        if (command instanceof DeletePerson) {
+	        if (command instanceof DeletePersonCommand) {
 	            console.log("personStoreDriver - DeletePerson: " + JSON.stringify(command));
 	            persons = persons.filter(function (p) { return p.id !== command.Id; });
 	        }
-	        if (command instanceof ClearPersons) {
+	        if (command instanceof ClearPersonsCommand) {
 	            console.log("personStoreDriver - ClearPersons: " + JSON.stringify(command));
 	            persons = [];
 	        }
@@ -29275,27 +29275,27 @@
 	var personStoreDriver_1 = __webpack_require__(63);
 	var _ = __webpack_require__(70);
 	/**
-	 *            DOM                     PersonStoreDriver
-	 *      ______________             _____________________
-	 *       |         |                         |
-	 *       | personSelectionClick$         persons$
-	 *       |         |                       | |
-	 *       |         | _ _     _ _ _ _ _ _ _ | |
-	 *       |              |   |                |
-	 *       |              V   V                |
-	 *       V           selectedIds$            |
-	 *  deleteClick$        |   |                |
-	 *       |              |   |                |
-	 *       |              |   |                |
-	 *       |_ _ _ _    _ _|   |_ _ _ _ _ _ _   |
-	 *              |   |                     |  |
-	 *              V   V                     V  V
-	 *          deleteRequest$               vtree$
-	 *                |                        |
-	 *                |                        |
-	 *                V                        V
-	 *       ____________________        ________________
-	 *        PersonStoreDriver                DOM
+	 *               DOM                          PersonStoreDriver
+	 * _______________________________          _____________________
+	 *       |         |         |                         |
+	 *       |         | personSelectionClick$         persons$
+	 *       |         |         |                       | |
+	 *       |         |         | _ _     _ _ _ _ _ _ _ | |
+	 *       V         |              |   |                |
+	 * clearClick$     |              V   V                |
+	 *       |         V           selectedIds$            |
+	 *       |   deleteClick$         |   |                |
+	 *       |         |              |   |                |
+	 *       |         |              |   |                |
+	 *       |         |_ _ _ _    _ _|   |_ _ _ _ _ _ _   |
+	 *       |                |   |                     |  |
+	 *       |                V   V                     V  V
+	 *  clearRequest$     deleteRequest$               vtree$
+	 *       |                 |                         |
+	 *       |                 |                         |
+	 *       V                 V                         V
+	 *     _____________________________        ________________
+	 *           PersonStoreDriver                     DOM
 	 *
 	 *
 	 * DOM                   -> DOM driver
@@ -29310,7 +29310,9 @@
 	 * selectedIds$          -> The person$ and personSelectionClick$ streams are combined to determine what the current selected ids are. This stream emits an array of selected ids
 	 * vtree$                -> The virtual dom is created from the person$ (for the data) and the selectedIds$ (for the highlights)
 	 * deleteClick$          -> Stream of clicks on the delete button
-	 * deleteRequest$        -> The deleteClick$ and selectedIds$ are combined to create a DeletePersons request for the latest ids in the selectedIds$ stream
+	 * deleteRequest$        -> The deleteClick$ and selectedIds$ are combined to create a DeletePersonsCommand request for the latest ids in the selectedIds$ stream
+	 * clearClick$           -> Stream of clicks on the clear button
+	 * clearRequest$         -> The clearClick$ creates a ClearPersonsCommand request
 	 **/
 	function PersonList(drivers) {
 	    // Updates from the Person[]
@@ -29337,10 +29339,10 @@
 	    var deleteRequest$ = selectedIds$
 	        .sample(deleteClick$)
 	        .flatMap(function (ids) { return rx_1.Observable.fromArray(ids); })
-	        .map(function (id) { return new personStoreDriver_1.DeletePerson(id); })
+	        .map(function (id) { return new personStoreDriver_1.DeletePersonCommand(id); })
 	        .do(function (req) { return console.log("deleteRequest$: " + JSON.stringify(req)); });
 	    var clearRequest$ = clearClick$
-	        .map(function (_) { return new personStoreDriver_1.ClearPersons(); })
+	        .map(function (_) { return new personStoreDriver_1.ClearPersonsCommand(); })
 	        .do(function (req) { return console.log("clearRequest$: " + JSON.stringify(req)); });
 	    var state$ = rx_1.Observable.combineLatest(persons$, selectedIds$, function (persons, selectedIds) { return ({ persons: persons, selectedIds: selectedIds }); });
 	    // VIEW -- genereate virtual DOM
@@ -43968,7 +43970,54 @@
 	var dom_1 = __webpack_require__(5);
 	var rx_1 = __webpack_require__(2);
 	var personStoreDriver_1 = __webpack_require__(63);
-	function EditPerson(drivers) {
+	/**
+	 *            DOM                               PersonStoreDriver
+	 *   ______________________________           _____________________
+	 *       |             |         |                     |
+	 * firstNameInput$     |         |                  persons$
+	 *       |             |         |                     |
+	 *       |     lastNameInput$    |                     |
+	 *       |             |         |                     V
+	 *       |             |   createClick$        personCountChanged$
+	 *       |             |         |                     |
+	 *       |             |         |                     |
+	 *       |             |         |                     V
+	 *       |_ _ _ _    _ |         |        personCountChangedMessage$
+	 *              |   |            |                |           |
+	 *              V___V            |                |           |
+	 *               |               |                |           |
+	 *               | <-------------|                |           V
+	 *               |                                |      clearMessage$
+	 *               |                                |           |
+	 *               |                                |_ _ _ _ _ _|
+	 *               |                                      |
+	 *               |                                      V
+	 *          addRequest$                              vtree$
+	 *                |                                     |
+	 *                |                                     |
+	 *                V                                     V
+	 *       ____________________                    ________________
+	 *        PersonStoreDriver                            DOM
+	 *
+	 *
+	 * DOM                   -> DOM driver
+	 *                               -> Source: Virtual DOM from which we can listen to events from the user
+	 *                               -> Sink:   Takes an Observable of generated Virtual DOMs
+	 * PersonStoreDriver     -> Local storage driver for persons
+	 *                               -> Source: Observable that gives a list of Persons everytime the list in the storage is updated
+	 *                               -> Sink:   Takes an Observable of actions on the persons in storage to add and delete persons (AddPerson, DeletePersons)
+	 *
+	 * persons$                    -> Stream of Person[]. Everytime the list of persons changes a new array is pushed
+	 * personCountChanged$         -> Listens to the persons$ stream and emits a number indicating how many persons are added or deleted
+	 * personCountChangedMessage$  -> Formats a  message for the user about the change of person count
+	 * clearMessage$               -> Times an empty message after each personCountChangedMessage$ to clear the message
+	 * vtree$                      -> The virtual dom is created from the person$ (for the data) and the selectedIds$ (for the highlights)
+	 * firstNameInput$             -> Stream of the inputed first name
+	 * lastNameInput$              -> Stream of the inputed last name
+	 * createClick$                -> When the user clicks save
+	 * addRequest$                 -> Whem the user clicks save and the first and last names are not empty a request is made to persist the person
+	 **/
+	function AddPerson(drivers) {
 	    // Updates from the Person[]
 	    var persons$ = drivers.PersonStoreDriver.do(function (x) { return console.log("persons$: " + x.length + " persons"); }).shareReplay(1);
 	    var personCountChanged$ = persons$
@@ -43987,11 +44036,11 @@
 	    // save person
 	    var firstNameInput$ = drivers.DOM.select(".firstName").events("input").map(function (ev) { return ev.target.value; }).do(function (x) { return console.log("firstNameInput$: " + x); });
 	    var lastNameInput$ = drivers.DOM.select(".lastName").events("input").map(function (ev) { return ev.target.value; }).do(function (x) { return console.log("lastNameInput$: " + x); });
-	    var storageRequest$ = rx_1.Observable.combineLatest(firstNameInput$, lastNameInput$, function (f, l) { return ({ firstName: f, lastName: l }); })
+	    var addRequest$ = rx_1.Observable.combineLatest(firstNameInput$, lastNameInput$, function (f, l) { return ({ firstName: f, lastName: l }); })
 	        .sample(createClick$)
 	        .filter(function (x) { return x.firstName !== "" && x.lastName !== ""; })
-	        .map(function (x) { return new personStoreDriver_1.AddPerson(x.firstName, x.lastName); })
-	        .do(function (x) { return console.log("storageRequest$: " + JSON.stringify(x)); });
+	        .map(function (x) { return new personStoreDriver_1.AddPersonCommand(x.firstName, x.lastName); })
+	        .do(function (x) { return console.log("addRequest$: " + JSON.stringify(x)); });
 	    var vtree$ = message$
 	        .map(function (message) {
 	        return dom_1.div([
@@ -44021,10 +44070,10 @@
 	    }).do(function (x) { return console.log("vtree$"); });
 	    return {
 	        DOM: vtree$,
-	        PersonStoreDriver: storageRequest$
+	        PersonStoreDriver: addRequest$
 	    };
 	}
-	exports.EditPerson = EditPerson;
+	exports.AddPerson = AddPerson;
 
 
 /***/ },
