@@ -3,7 +3,7 @@ import {makeDOMDriver, div, button} from "@cycle/dom";
 import {Observable} from "rx";
 import {personStoreDriver} from "./personStoreDriver";
 import {PersonList} from "./components/personList";
-import {EditPerson} from "./components/editPerson";
+import {AddPerson} from "./components/addPerson";
 import {Person} from "./Person";
 
 require("!style!css!./css/normalize.css");
@@ -17,7 +17,7 @@ function main(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
     }
 
     let views = [];
-    views[ViewNames.ADD] = EditPerson(drivers);
+    views[ViewNames.ADD] = AddPerson(drivers);
     views[ViewNames.LIST] = PersonList(drivers);
 
     let selectedView$: Observable<any> = drivers.DOM.select(".select-view").events("click")

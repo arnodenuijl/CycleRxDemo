@@ -2,7 +2,7 @@ import {Observable, Subject} from "rx";
 import storageDriver from "@cycle/storage";
 import {Person} from "./person";
 
-export class AddPerson {
+export class AddPersonCommand {
     constructor(private firstName: string, private lastName: string) {
     }
 
@@ -10,14 +10,14 @@ export class AddPerson {
     get LastName() { return this.lastName; }
 }
 
-export class DeletePerson {
+export class DeletePersonCommand {
     constructor(private id: number) {
     }
 
     get Id() { return this.id; }
 }
 
-export class ClearPersons {
+export class ClearPersonsCommand {
 }
 
 export function personStoreDriver(commands$: Observable<any>) {
@@ -34,15 +34,15 @@ export function personStoreDriver(commands$: Observable<any>) {
 
     let storageCommands = Observable.zip(personsInStorage$, commands$, (persons, command) => { // zip
         let nextId = persons.reduce((lastMax, person) => Math.max(person.id, lastMax), 0) + 1;
-        if (command instanceof AddPerson) {
+        if (command instanceof AddPersonCommand) {
           console.log("personStoreDriver - AddPerson: " + JSON.stringify(command));
           persons.push({ id: nextId, firstName: command.FirstName, lastName: command.LastName });
         }
-        if (command instanceof DeletePerson) {
+        if (command instanceof DeletePersonCommand) {
           console.log("personStoreDriver - DeletePerson: " + JSON.stringify(command));
           persons = persons.filter(p => p.id !== command.Id);
         }
-        if (command instanceof ClearPersons) {
+        if (command instanceof ClearPersonsCommand) {
           console.log("personStoreDriver - ClearPersons: " + JSON.stringify(command));
           persons = [];
         }

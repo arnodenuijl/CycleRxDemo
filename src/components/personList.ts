@@ -2,31 +2,31 @@ import {run} from "@cycle/core";
 import {makeDOMDriver, input, div, p, label, button, table, tr, td, th, thead, tbody } from "@cycle/dom";
 import storageDriver from "@cycle/storage";
 import {Observable} from "rx";
-import {AddPerson, DeletePerson, ClearPersons} from "../personStoreDriver";
+import {AddPersonCommand, DeletePersonCommand, ClearPersonsCommand} from "../personStoreDriver";
 import {Person} from "../person";
 import * as _ from "lodash";
 /**
- *            DOM                     PersonStoreDriver
- *      ______________             _____________________
- *       |         |                         |
- *       | personSelectionClick$         persons$
- *       |         |                       | |
- *       |         | _ _     _ _ _ _ _ _ _ | |
- *       |              |   |                |
- *       |              V   V                |
- *       V           selectedIds$            |
- *  deleteClick$        |   |                |
- *       |              |   |                |
- *       |              |   |                |
- *       |_ _ _ _    _ _|   |_ _ _ _ _ _ _   |
- *              |   |                     |  |
- *              V   V                     V  V
- *          deleteRequest$               vtree$
- *                |                        |
- *                |                        |
- *                V                        V
- *       ____________________        ________________
- *        PersonStoreDriver                DOM
+ *               DOM                          PersonStoreDriver
+ * _______________________________          _____________________
+ *       |         |         |                         |
+ *       |         | personSelectionClick$         persons$
+ *       |         |         |                       | |
+ *       |         |         | _ _     _ _ _ _ _ _ _ | |
+ *       V         |              |   |                |
+ * clearClick$     |              V   V                |
+ *       |         V           selectedIds$            |
+ *       |   deleteClick$         |   |                |
+ *       |         |              |   |                |
+ *       |         |              |   |                |
+ *       |         |_ _ _ _    _ _|   |_ _ _ _ _ _ _   |
+ *       |                |   |                     |  |
+ *       |                V   V                     V  V
+ *  clearRequest$     deleteRequest$               vtree$
+ *       |                 |                         |
+ *       |                 |                         |
+ *       V                 V                         V
+ *     _____________________________        ________________
+ *           PersonStoreDriver                     DOM
  *
  *
  * DOM                   -> DOM driver
@@ -41,7 +41,9 @@ import * as _ from "lodash";
  * selectedIds$          -> The person$ and personSelectionClick$ streams are combined to determine what the current selected ids are. This stream emits an array of selected ids
  * vtree$                -> The virtual dom is created from the person$ (for the data) and the selectedIds$ (for the highlights)
  * deleteClick$          -> Stream of clicks on the delete button
- * deleteRequest$        -> The deleteClick$ and selectedIds$ are combined to create a DeletePersons request for the latest ids in the selectedIds$ stream
+ * deleteRequest$        -> The deleteClick$ and selectedIds$ are combined to create a DeletePersonsCommand request for the latest ids in the selectedIds$ stream
+ * clearClick$           -> Stream of clicks on the clear button
+ * clearRequest$         -> The clearClick$ creates a ClearPersonsCommand request 
  **/
 export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
     // Updates from the Person[]
@@ -74,11 +76,11 @@ export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Pe
     let deleteRequest$ = selectedIds$
         .sample(deleteClick$)
         .flatMap(ids => Observable.fromArray(ids))
-        .map(id => new DeletePerson(id))
+        .map(id => new DeletePersonCommand(id))
         .do(req => console.log("deleteRequest$: " + JSON.stringify(req)));
 
     let clearRequest$ = clearClick$
-        .map(_ => new ClearPersons())
+        .map(_ => new ClearPersonsCommand())
         .do(req => console.log("clearRequest$: " + JSON.stringify(req)));
 
 

@@ -3,7 +3,7 @@ import {makeDOMDriver, input, div, p, label, button, span} from "@cycle/dom";
 import storageDriver from "@cycle/storage";
 import {Observable} from "rx";
 import {Person} from "../person";
-import {AddPerson} from "../personStoreDriver";
+import {AddPersonCommand} from "../personStoreDriver";
 
 /**
  *            DOM                               PersonStoreDriver
@@ -53,7 +53,7 @@ import {AddPerson} from "../personStoreDriver";
  * addRequest$                 -> Whem the user clicks save and the first and last names are not empty a request is made to persist the person
  **/
 
-export function EditPerson(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
+export function AddPerson(drivers: { DOM: any, PersonStoreDriver: Observable<Person[]> }) {
         // Updates from the Person[]
     let persons$ = drivers.PersonStoreDriver.do(x => console.log("persons$: " + x.length + " persons")).shareReplay(1);
 
@@ -80,7 +80,7 @@ export function EditPerson(drivers: { DOM: any, PersonStoreDriver: Observable<Pe
     let addRequest$ = Observable.combineLatest(firstNameInput$, lastNameInput$, (f, l) => ({ firstName: f, lastName: l }))
         .sample(createClick$)
         .filter(x => x.firstName !== "" && x.lastName !== "")
-        .map(x => new AddPerson(x.firstName, x.lastName))
+        .map(x => new AddPersonCommand(x.firstName, x.lastName))
         .do(x => console.log("addRequest$: " + JSON.stringify(x)));
 
     let vtree$ = message$
