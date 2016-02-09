@@ -14,17 +14,18 @@ import * as _ from "lodash";
  *       |         |         | _ _     _ _ _ _ _ _ _ | |
  *       V         |              |   |                |
  * clearClick$     |              V   V                |
- *       |         V           selectedIds$            |
- *       |   deleteClick$         |   |                |
+ *       |         V       (combineLatest, scan)       |
+ *       |   deleteClick$       selectedIds$           |
  *       |         |              |   |                |
- *       |         |              |   |                |
- *       |         |_ _ _ _    _ _|   |_ _ _ _ _ _ _   |
- *       |                |   |                     |  |
- *       |                V   V                     V  V
- *  clearRequest$     deleteRequest$               vtree$
- *       |                 |                         |
- *       |                 |                         |
- *       V                 V                         V
+ *       |         | (sample)     |   |                |
+ *       |         |- - - - - - ->=   |_ _ _ _ _ _ _   |
+*        |                        |                 |  |
+ *       |                        V                 V  V
+ *     (map)                    (map)          (combineLatest) 
+ *  clearRequest$            deleteRequest$        vtree$
+ *       |                        |                  |
+ *       |                        |                  |
+ *       V                        V                  V
  *     _____________________________        ________________
  *           PersonStoreDriver                     DOM
  *
@@ -57,18 +58,26 @@ export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Pe
         .map(ev => ev.currentTarget.dataset)
         .filter(data => data.id !== undefined)
         .map(data => ({ id: Number(data.id), selected: !(data.selected === "true") }))
+        .share()
         // share because two streams use this. One for the vtree$ and one for the deleteRequest$. If not shared FIRST the vtree$ is altered
         // and rerendered and THEN the deleteRequest$ is processed. But that goes wrong because it operates on the already changed DOM
         .do(x => console.log("personSelectionClick$: " + JSON.stringify(x)));
 
     // MODEL
-    // combine persons$ and personSelectionClick$ to determine the currently selected ids
-    let PersonsAndClicksCombined$: Observable<PersonsAndClicksCombined> = Observable.combineLatest(persons$, personSelectionClick$, (persons, personSelectionClick) => ({ persons, personSelectionClick }));
-    let selectedIds$: Observable<number[]> = PersonsAndClicksCombined$
-        .scan((selectedIdsAccumulator: number[], value: PersonsAndClicksCombined) =>
-            determineSelectedIds(selectedIdsAccumulator, value.persons, value.personSelectionClick),
-        [])
-        .startWith([]) // start with empty selection
+    let personIdSelected$ = personSelectionClick$.filter(click => click.selected).map(person => person.id).do(id => console.log("id selected: " + id)); // id of the selected person
+    let personIdDeselected$ = personSelectionClick$.filter(click => !click.selected).map(person => person.id).do(id => console.log("id deselected: " + id)); // id of the deselected person
+    let personIdsUpdated$ = persons$.map(personArray => personArray.map(person => person.id)); // array of ids for the latest list of persons 
+
+    let initialSelectedIds: number[] = []; // initial selectedIds state
+    // mutation functions
+    let applyPersonSelected$ = personIdSelected$.map((id: number) => (selectedIds: number[]) => _.union(selectedIds, [id])); // function to add selected id to the selectedIds
+    let applyPersonDeselected$ = personIdDeselected$.map((id: number) => (selectedIds: number[]) => _.without(selectedIds, id)); // function to remove deselected id from the selectedIds
+    let applyPersonListUpdated$ = personIdsUpdated$.map((personIds: number[]) => (selectedIds: number[]) => _.intersection(selectedIds, personIds)); // remove selectedIds that are not in the personlist anymore
+
+    // merge all the mutation functions and apply to the state starting with the initialSelectedIds
+    let selectedIds$: Observable<number[]> = Observable.merge(applyPersonSelected$, applyPersonDeselected$, applyPersonListUpdated$)
+        .scan((selectedIdsAccumulator: number[], applyFunction) => applyFunction(selectedIdsAccumulator), initialSelectedIds)
+        .startWith(initialSelectedIds) // start with empty selection
         .do(x => console.log("selectedIds$: " + JSON.stringify(x)))
         .share();
 
@@ -84,7 +93,7 @@ export function PersonList(drivers: { DOM: any, PersonStoreDriver: Observable<Pe
         .do(req => console.log("clearRequest$: " + JSON.stringify(req)));
 
 
-    let state$: Observable<State> = Observable.combineLatest(persons$, selectedIds$, (persons, selectedIds) => ({persons, selectedIds}));
+    let state$: Observable<State> = Observable.combineLatest(persons$, selectedIds$, (persons, selectedIds) => ({ persons, selectedIds }));
 
     // VIEW -- genereate virtual DOM
     let vtree$ = view(state$);
@@ -124,7 +133,7 @@ function view(state$: Observable<State>): Observable<any> {
                                 ])),
                 ])
             ]),
-            div([button(".delete", "delete")]) ,
+            div([button(".delete", "delete")]),
             div([button(".clear", "clear")])
             // selectedIds.length > 0 ? div([button(".delete", "delete")]) : null,
             // persons.length > 0 ? div([button(".clear", "clear")]) : null
@@ -133,25 +142,7 @@ function view(state$: Observable<State>): Observable<any> {
     return vtree$;
 }
 
-function determineSelectedIds(currentSelectedIds: number[], latestPersonList: Person[], latestSelectionToggled: ({ id: number, selected: boolean })) {
-    let personIds = latestPersonList.map(x => x.id);
-
-    let selectedIds = currentSelectedIds;
-    if (latestSelectionToggled.selected) {
-        selectedIds = _.union(selectedIds, [latestSelectionToggled.id]);     // include selected
-    } else {
-        selectedIds = _.without(selectedIds, latestSelectionToggled.id);     // remove deselected
-    }
-    selectedIds = _.intersection(personIds, selectedIds);                    // only keep ids that are in the person list
-    return selectedIds;
-}
-
-interface PersonsAndClicksCombined {
-    persons: Person[];
-    personSelectionClick: ({ id: number, selected: boolean });
-}
-
 interface State {
-  persons: Person[];
-  selectedIds: number[];
+    persons: Person[];
+    selectedIds: number[];
 }
